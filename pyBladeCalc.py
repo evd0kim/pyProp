@@ -1,7 +1,11 @@
-﻿#Расчёт пропеллера по импульсной теории
+﻿#Smallscale rotor calculation using Blade Element - Momentum theory
+#the code was developed using theory published in the 'Aerodynamics of Helicopter'
+#by Boris Yuryev, 1956
+#Bibliography: Jur'ev B. N. Ajerodinamicheskij raschet vertoletov. M., Oborongiz, 1956
+#Similar theory you can find in 'Helicopter Theory' by Wayne Johnson
 
-#Подключение модулей
-
+################################################################################
+#Modules initialization
 import sys
 import numpy as np
 import pylab as pl
@@ -12,14 +16,18 @@ from pylab import save
 
 from scipy import interpolate
 from math import pi
+#end
+################################################################################
 
+#some user functions to calculate trigonometric functions directly using angles
+#in grad
 cosd = lambda angle: np.cos(np.deg2rad(angle))
 sind = lambda angle: np.sin(np.deg2rad(angle))
 
-#Функция чтения файла с данными профиля
+#function to read aerodynamical characteristics of the airfoil
 def foil_data(filename, dtype, separator=';'):
-	''' Считывает файл построчно с учётом разделителя ;
-	Файл должен содержать колонки RE CX CY MZ, разделённые ;
+	''' Reads file string by string using ";" as delimeter
+	The file should include string at the top containing RE CX CY MZ separated by ;
 	'''
 	print('Source file with foil data is ', filename)
 	cast = np.cast
@@ -47,9 +55,13 @@ def foil_data(filename, dtype, separator=';'):
 		data[i] = cast[dtype[i]](data[i])
 	return np.rec.array(data, dtype=dtype)
 
+#function to read geometrical characteristics of rotor
 def prop_data(filename, dtype, separator=';'):
-	''' Считывает файл построчно с учётом разделителя ;
-	Файл должен содержать колонки r/R    c/R     beta, разделённые  
+	''' Reads file string by string using ";" as delimeter
+	The file should include string at the top containing r/R c/R beta separated by ;
+	r/R - relative radius
+	c/R - relative chord
+	beta - twist
 	'''
 	print 'Source file with foil data is %s' %(filename)
 	cast = np.cast
@@ -87,7 +99,7 @@ def CxCyFromFile(RE, ALPHA, foilDataArray):
 		#print "Uniq elems = %s" %(np.unique(foilDataArray.RE))
 		RE_SET = np.unique(foilDataArray.RE)
 		RE_MAX = np.take(RE_SET, np.where(RE_SET>RE))[0][0]
-		RE_MIN = np.take(RE_SET, np.where(RE_SET<RE))[0][0]	
+		RE_MIN = np.take(RE_SET, np.where(RE_SET<RE))[0][0]
 		k_min = 1.0*(RE_MAX - RE)/(RE_MAX-RE_MIN)
 		k_max = 1.0*(RE - RE_MIN)/(RE_MAX-RE_MIN)
 
@@ -101,15 +113,15 @@ def CxCyFromFile(RE, ALPHA, foilDataArray):
 	ALPHA_min = np.take(foilDataArray.ALPHA, idx_min)
 	CX_min = np.take(foilDataArray.CX, idx_min)
 	CY_min = np.take(foilDataArray.CY, idx_min)
-	
+
 	CLiftIntMax = lambda alpha: np.interp(alpha, ALPHA_max[0], CY_max[0])
 	CDragIntMax = lambda alpha: np.interp(alpha, ALPHA_max[0], CX_max[0])
 	CLiftIntMin = lambda alpha: np.interp(alpha, ALPHA_min[0], CY_min[0])
 	CDragIntMin = lambda alpha: np.interp(alpha, ALPHA_min[0], CX_min[0])
-	
+
 	return [CDragIntMax(ALPHA)*k_max + CDragIntMin(ALPHA)*k_min,
 	CLiftIntMax(ALPHA)*k_max + CLiftIntMin(ALPHA)*k_min]
-	
+
 #Считываем Данные поляры
 
 if len(sys.argv)> 0:
@@ -141,14 +153,14 @@ if len(sys.argv)> 1:
 	#print geomData.r_
 	b = lambda r_i: np.interp(r_i, geomData.r_, geomData.c_) #Функция вычисления хорды на основе файла геометрии
 	sigma = lambda r_i: K_l*b(r_i)/(np.pi)
-	fPhi = lambda r_i: np.interp(r_i, geomData.r_, geomData.beta) #функция для расчёта угла установки от относительного радиуса 
+	fPhi = lambda r_i: np.interp(r_i, geomData.r_, geomData.beta) #функция для расчёта угла установки от относительного радиуса
 else:
 	print('No propeller geometry source file has been specified ')
 	sys.exit()
-	
-#----------------------------------------------#			
+
+#----------------------------------------------#
 D = 10*0.0254	#дюйм*коэфф = м,   диаметр винта
-R_l = 0.5*D		#м	
+R_l = 0.5*D		#м
 H = 7*0.0254	#дюйм*коэфф = м,   шаг винт
 b_07 = 0.214*R_l	#м	хорда на 0,7
 eta_l = 1	# 	сужение лопасти в плане;
@@ -158,13 +170,13 @@ Nrad = 11	#	количество сечений по r
 a_inf = 5.6
 a = 341.4
 nu = 1.5e-5
-#----------------------------------------------#			
+#----------------------------------------------#
 
-#функция для расчёта коэффициентa заполнения от относительной хорды 	
+#функция для расчёта коэффициентa заполнения от относительной хорды
 
 r = np.zeros(Nrad)
 
-#Вычисляем отн. радиус, угол установки, коэффициент заполнения 
+#Вычисляем отн. радиус, угол установки, коэффициент заполнения
 for i in range(1, Nrad):
 	r[i]=r[i-1]+1.0/(Nrad-1.0)
 
@@ -272,10 +284,10 @@ Ct_c_v = np.sum(dCt_dr_v, axis = 0)*np.pi**3
 B = 1 - 4*Ct_c/K_l
 Ct = B*Ct_c
 
-print('Ct* list\n', Ct_c)	
-print('Ct_v* list\n', Ct_c_v)	
+print('Ct* list\n', Ct_c)
+print('Ct_v* list\n', Ct_c_v)
 
-print('B list\n', B)	
+print('B list\n', B)
 print('Ct list\n', Ct)
 
 dmi_dr = np.zeros((Nrad, Ntab))
@@ -287,7 +299,7 @@ for i in range(1, Nrad):
 	for j in range(0,Ntab):
 		dmi_dr[i,j] = dCt_dr[i,j]*V_1[i,j]*(r[i]-r[i-1])
 		dmr_dr[i,j] = CDrag(Re[i,j], alpha_e[i,j])*sigma(r[i])*0.125*(r[i-1]+r[i])**3*(r[i]-r[i-1])
-		
+
 		dmi_dr_v[i,j] = dCt_dr_v[i,j]*V_1[i,j]*(r[i]-r[i-1])
 		Cx_beta = CLift(Re[i,j], alpha_e[i,j])*sind(beta_e[i,j]) + CDrag(Re[i,j], alpha_e[i,j])*cosd(beta_e[i,j])
 		dmr_dr_v[i,j] = Cx_beta*sigma(r[i])*(r[i]**2 + V_1[i,j]**2)*(r[i]+r[i-1])*0.5*(r[i]-r[i-1])
@@ -297,19 +309,19 @@ mr = np.sum(dmr_dr, axis = 0)
 mk = (mi + mr)*np.pi**4/8
 print "Mk"
 print mk
-print('dmi/dr \n', mi)	
-print('dmr/dr \n', mr)	
-#print('dmr/dr \n', dmr_dr)	
+print('dmi/dr \n', mi)
+print('dmr/dr \n', mr)
+#print('dmr/dr \n', dmr_dr)
 mi_v = np.sum(dmi_dr_v, axis = 0)
 mr_v = np.sum(dmr_dr_v, axis = 0)
 mk_v = (mi_v + mr_v)*np.pi**4/8
 print "Mk_v"
 print mk_v
-print('dmi/dr \n', mi_v)	
-print('dmr/dr \n', mr_v)	
+print('dmi/dr \n', mi_v)
+print('dmr/dr \n', mr_v)
 
 nu0 = Ct_c_v/mk_v*J
-print('Nu0 list\n', nu0)	
+print('Nu0 list\n', nu0)
 
 plt.figure(2)
 plt.subplot(311)
@@ -351,10 +363,10 @@ Nv = 0.5*mk*rho*(w*R_l)**3*np.pi*R_l**2
 G = 0.5*Ct*rho*(w*R_l)**2*np.pi*R_l**2
 m = G/9.81
 Mn = Nv/(w*R_l)
-print('Nv list\n', Nv)	
-print('G list\n', G)	
-print('m list\n', m)	
-print('m list\n', Mn)	
+print('Nv list\n', Nv)
+print('G list\n', G)
+print('m list\n', m)
+print('m list\n', Mn)
 
 plt.figure(1)
 plt.subplot(311)
