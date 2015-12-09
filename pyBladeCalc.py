@@ -1,8 +1,11 @@
-﻿#Расчёт пропеллера по импульсной теории
+﻿#Calculation of the blade characteristics using BEM method
 
-#Подключение модулей
-
+#csv files stuff
+import csv
 import sys
+#
+
+#including modules
 import numpy as np
 import pylab as pl
 import matplotlib.pyplot as plt
@@ -16,62 +19,32 @@ from math import pi
 cosd = lambda angle: np.cos(np.deg2rad(angle))
 sind = lambda angle: np.sin(np.deg2rad(angle))
 
-#Функция чтения файла с данными профиля
-def foil_data(filename, dtype, separator=';'):
-	''' Считывает файл построчно с учётом разделителя ;
-	Файл должен содержать колонки RE CX CY MZ, разделённые ;
-	'''
-	print('Source file with foil data is ', filename)
-	cast = np.cast
-	data = [[] for dummy in range(len(dtype))]
-	for line in open(filename, 'r'):
-		fields = line.strip().split(separator)
-		for i, number in enumerate(fields):
-			data[i].append(number)
-	for i in range(len(dtype)):
-		if data[i][0] == 'RE' or data[i][0] == 're' or data[i][0] == 'Re':
-			print ('RE is OK')
-		elif data[i][0] == 'ALPHA' or data[i][0] == 'alpha' or data[i][0] == 'Alpha':
-			print ('ALPHA is OK')
-		elif data[i][0] == 'CX' or data[i][0] == 'Cx' or data[i][0] == 'cx':
-			print ('CX is OK')
-		elif data[i][0] == 'CY' or data[i][0] == 'Cy' or data[i][0] == 'cy':
-			print ('CY is OK')
-		elif data[i][0] == 'MZ' or data[i][0] == 'Mz' or data[i][0] == 'mz':
-			print ('MZ is OK')
-		else:
-			print ('ERROR in airfoil data file opening\n')
-			break;
-		data[i].pop(0)
-	for i in range(len(dtype)):
-		data[i] = cast[dtype[i]](data[i])
-	return np.rec.array(data, dtype=dtype)
-
-def prop_data(filename, dtype, separator=';'):
-	''' Считывает файл построчно с учётом разделителя ;
-	Файл должен содержать колонки r/R    c/R     beta, разделённые  
-	'''
-	print 'Source file with foil data is %s' %(filename)
-	cast = np.cast
-	data = [[] for dummy in range(len(dtype))]
-	for line in open(filename, 'r'):
-		fields = line.strip().split(separator)
-		for i, number in enumerate(fields):
-			data[i].append(number)
-	for i in range(len(dtype)):
-		if data[i][0] == 'r/R':
-			print ('r/R is OK')
-		elif data[i][0] == 'c/R':
-			print ('c/R is OK')
-		elif data[i][0] == 'beta':
-			print ('beta is OK')
-		else:
-			print ('ERROR in geom file opening\n')
-			break;
-	data[0].pop(0); data[1].pop(0); data[2].pop(0)
-	for i in range(len(dtype)):
-		data[i] = cast[dtype[i]](data[i])
-	return np.rec.array(data, dtype=dtype)
+#CSV-reading function
+def getDataFromCSV(filename, dtype, separator=';'):
+	print 'Source CSV-file with data is %s' %(filename)
+	try:	
+		f = open(filename, 'rt')
+		reader = csv.reader(f, delimiter=separator)
+		data = []		
+		#if (len(dtype) == len(reader.next())):
+		if (True):		
+			j = int(0)
+			for row in reader:
+				i = int(0)
+				for field in row:
+					try:					
+						data.append(np.float64(field))
+					except:
+						continue
+					else:
+						i+=1
+				j+=1
+	finally:
+		f.close()
+		#print "i = %i, j = %i" %(i,j)
+		data = np.array(data, dtype = 'float64')
+		data = data.reshape((j-1,i))
+		return np.rec.array(data, dtype=dtype)	
 
 def CxCyFromFile(RE, ALPHA, foilDataArray):
 	#dataFile = foil_data(sourceFile, polarDataDescr)
@@ -113,9 +86,9 @@ def CxCyFromFile(RE, ALPHA, foilDataArray):
 #Считываем Данные поляры
 
 if len(sys.argv)> 0:
-	polarDataDescr = np.dtype([('RE', 'int'),('ALPHA', 'float'),  ('CX', 'float'), ('CY', 'float'), ('MZ', 'float')])
+	polarDataDescr = np.dtype([('RE', 'float'),('ALPHA', 'float'),  ('CX', 'float'), ('CY', 'float'), ('MZ', 'float')])
 	polar_file = sys.argv[1]
-	foilData = foil_data(polar_file, polarDataDescr)
+	foilData = getDataFromCSV(polar_file, polarDataDescr)
 	CLift = lambda re, alpha: CxCyFromFile(re, alpha, foilData)[1]
 	CDrag = lambda re, alpha: CxCyFromFile(re, alpha, foilData)[0]
 else:
@@ -133,15 +106,14 @@ print "W*R = %s" %(W*10*0.025*0.5)
 angle = np.zeros(Ntab)
 Cx_interp = np.zeros(Ntab)
 
-#Парметры винта
+#Blade geometry parameters
 if len(sys.argv)> 1:
 	geom_file = sys.argv[2]
 	geomDataDescr = np.dtype([('r_', 'float'),('c_', 'float'),  ('beta', 'float')])
-	geomData = prop_data(geom_file, geomDataDescr )
-	#print geomData.r_
-	b = lambda r_i: np.interp(r_i, geomData.r_, geomData.c_) #Функция вычисления хорды на основе файла геометрии
+	geomData = getDataFromCSV(geom_file, geomDataDescr, separator=" " )
+	b = lambda r_i: np.interp(r_i, geomData.r_.reshape(-1), geomData.c_.reshape(-1)) #Функция вычисления хорды на основе файла геометрии
 	sigma = lambda r_i: K_l*b(r_i)/(np.pi)
-	fPhi = lambda r_i: np.interp(r_i, geomData.r_, geomData.beta) #функция для расчёта угла установки от относительного радиуса 
+	fPhi = lambda r_i: np.interp(r_i, geomData.r_.reshape(-1), geomData.beta.reshape(-1)) #функция для расчёта угла установки от относительного радиуса 
 else:
 	print('No propeller geometry source file has been specified ')
 	sys.exit()
@@ -338,6 +310,18 @@ plt.savefig('results.png', bbox_inches=0)
 #Сохраняем данные в файл
 outfile=open('N'+str(N)+'.dat', 'w')
 outfile.write('J \t Cp \t Ct \t eta\n')
+
+'''
+#writing data to file
+f = open('piston_r_20.csv', 'wt')
+try:
+    writer = csv.writer(f)
+    writer.writerow( ('Time', 'Pressure A', 'Pressure B', 'Pressure C', 'Pressure D') )
+    for t, p_a, p_b, p_c, p_d in zip(t, pressure_a, pressure_b, pressure_c, pressure_d):
+        writer.writerow( (t, p_a, p_b, p_c, p_d) )
+finally:
+    f.close()
+'''
 
 for j, cp, ct, eta in zip(J, Ct_c_v, mk_v, nu0):
 	outfile.write(str(j) + '\t'+str(ct) + '\t' + str(cp) + '\t' + str(eta) + '\n')
