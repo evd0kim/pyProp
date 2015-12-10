@@ -307,64 +307,12 @@ plt.axhline(0, color='black', lw=1)
 plt.show()
 plt.savefig('results.png', bbox_inches=0)
 
-#Сохраняем данные в файл
-outfile=open('N'+str(N)+'.dat', 'w')
-outfile.write('J \t Cp \t Ct \t eta\n')
-
-'''
 #writing data to file
-f = open('piston_r_20.csv', 'wt')
+outfile = open('N'+str(N)+'-calc.dat', 'wt')
 try:
-    writer = csv.writer(f)
-    writer.writerow( ('Time', 'Pressure A', 'Pressure B', 'Pressure C', 'Pressure D') )
-    for t, p_a, p_b, p_c, p_d in zip(t, pressure_a, pressure_b, pressure_c, pressure_d):
-        writer.writerow( (t, p_a, p_b, p_c, p_d) )
+    writer = csv.writer(outfile, delimiter='\t')
+    writer.writerow( ('J', 'Cp', 'Ct', 'eta') )
+    for j, cp, ct, eta in zip(J, Ct_c_v, mk_v, nu0):
+        writer.writerow( (j, cp, ct, eta) )
 finally:
-    f.close()
-'''
-
-for j, cp, ct, eta in zip(J, Ct_c_v, mk_v, nu0):
-	outfile.write(str(j) + '\t'+str(ct) + '\t' + str(cp) + '\t' + str(eta) + '\n')
-outfile.close()
-
-#Находим мощность на уровне моря
-
-rho = 1.226
-'''
-Nv = 0.5*mk*rho*(w*R_l)**3*np.pi*R_l**2
-G = 0.5*Ct*rho*(w*R_l)**2*np.pi*R_l**2
-m = G/9.81
-Mn = Nv/(w*R_l)
-print('Nv list\n', Nv)	
-print('G list\n', G)	
-print('m list\n', m)	
-print('m list\n', Mn)	
-
-plt.figure(1)
-plt.subplot(311)
-plt.plot(n, N, 'b',n, Nv, 'r')
-plt.axis([0, 9000, 0, 1000])
-plt.xlabel('n, rev/min')
-plt.ylabel('N, Nv, W')
-plt.grid(True)
-plt.axhline(0, color='black', lw=1)
-
-plt.subplot(312)
-plt.plot(n, Mn, 'r', n , M, 'b')
-plt.axis([0, 9000, 0, 10])
-plt.xlabel('n')
-plt.ylabel('M, Mn, N/m')
-plt.grid(True)
-plt.axhline(0, color='black', lw=1)
-
-plt.subplot(313)
-plt.plot(n, m, 'b')
-plt.axis([0, 9000, 0, 5])
-plt.xlabel('n')
-plt.ylabel('G, kg')
-plt.grid(True)
-plt.axhline(0, color='black', lw=1)
-
-#plt.show()
-plt.savefig('moments.png', bbox_inches=0)
-'''
+    outfile.close()
