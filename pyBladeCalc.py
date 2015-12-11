@@ -83,7 +83,7 @@ def CxCyFromFile(RE, ALPHA, foilDataArray):
 	return [CDragIntMax(ALPHA)*k_max + CDragIntMin(ALPHA)*k_min,
 	CLiftIntMax(ALPHA)*k_max + CLiftIntMin(ALPHA)*k_min]
 	
-#Считываем Данные поляры
+#Reading airfoil polar data file
 
 if len(sys.argv)> 0:
 	polarDataDescr = np.dtype([('RE', 'float'),('ALPHA', 'float'),  ('CX', 'float'), ('CY', 'float'), ('MZ', 'float')])
@@ -95,11 +95,13 @@ else:
 	print('No foil data file has been specified ')
 	sys.exit()
 
-Ntab = 9
-N = 3008
-W = np.pi/30*N
-V0 = np.array([0.01, 2, 4, 5, 6, 6.5, 7, 7.5, 8])
-J = V0/(N/60*10*0.025)
+#----------------------------------------------#
+Ntab = 9		#array parameter - number of incident velocities
+N = 3008		#rotational frequency - regime
+W = np.pi/30*N		#angular velocity of the blade
+V0 = np.array([0.01, 2, 4, 5, 6, 6.5, 7, 7.5, 8])	#free-flow velocity coefficient
+J = V0/(N/60*10*0.025)	#convert coefficients to velocities
+#----------------------------------------------#
 print "V0 = %s" %V0
 print "J = %s" %J
 print "W*R = %s" %(W*10*0.025*0.5)
@@ -119,52 +121,51 @@ else:
 	sys.exit()
 	
 #----------------------------------------------#			
-D = 10*0.0254	#дюйм*коэфф = м,   диаметр винта
-R_l = 0.5*D		#м	
-H = 7*0.0254	#дюйм*коэфф = м,   шаг винт
-b_07 = 0.214*R_l	#м	хорда на 0,7
-eta_l = 1	# 	сужение лопасти в плане;
-K_l = 2		#	количество лопастей НВ;
-r_0 = 0.15	#	относительный радиус втулки, с которого начинается рабочее сечение лопасти;
-Nrad = 11	#	количество сечений по r
+D = 10*0.0254		#inch*coeff = meter, rotor diameter
+R_l = 0.5*D		#meter	
+H = 7*0.0254		#inch*coeff = meter, blade pitch
+b_07 = 0.214*R_l	#meter, chord at 0.7R
+eta_l = 1		#relative width of the blade
+K_l = 2			#blade number
+r_0 = 0.15		#relative radius of the hub
+Nrad = 11		#blade elements number
 a_inf = 5.6
 a = 341.4
 nu = 1.5e-5
 #----------------------------------------------#			
 
-#функция для расчёта коэффициентa заполнения от относительной хорды 	
-
+#sections througth the blade
+#initialization
 r = np.zeros(Nrad)
-
-#Вычисляем отн. радиус, угол установки, коэффициент заполнения 
+#Calculate relative radius 
 for i in range(1, Nrad):
 	r[i]=r[i-1]+1.0/(Nrad-1.0)
 
+#Mach number and Reynolds number functions
 Mach = lambda omega, R, soundVel: omega*R/soundVel
 Reynolds = lambda omega, R, chord, visc: omega*R*chord/visc
 
+#Calculation of the M and Re at each element
 Mch = np.zeros((Nrad, Ntab))
 Re = np.zeros((Nrad, Ntab))
 
-#Вычисляем М и Re по оборотам и по размаху
+#For each section and each angular velocity (or frequency)
 for i in range(0, Nrad):
 	for j in range(0,Ntab):
 		Mch[i][j] = Mach( W, R_l*r[i], a)
 		Re[i][j] = Reynolds( W, r[i]*R_l, b(r[i])*R_l, nu)
-
-print Re[1,0]
+#Initialization of the inductive velocity, real incident element angle
+#and angle of attack correspondingly 
 V_1 = np.zeros((Nrad, Ntab))
 beta_e = np.zeros((Nrad, Ntab))
 alpha_e = np.zeros((Nrad, Ntab))
 
-#Функции для интерполяции происходящего
-CLiftTest = lambda alpha: np.interp(alpha, ALPHA_work[0], CY_work[0])
-CDragTest = lambda alpha: np.interp(alpha, ALPHA_work[0], CX_work[0])
-
+#Interpolation functions for lift and drag coefficients
 print "CLIFT LAMBDA interpolation test"
 print "RE = %s, Cy = %s" %(75000, CLift(75000, 5.0))
 print "RE = %s, Cx = %s" %(75000, CDrag(75000, 5.0))
 
+#definition of the main inductive velocity equation solving function
 def solve_V1(CyFunct, CxFunct, Re_e, V_0, sigmaVar, rVar , phi_e):
 	if rVar == 0:
 		return [0,0]
@@ -184,10 +185,9 @@ def solve_V1(CyFunct, CxFunct, Re_e, V_0, sigmaVar, rVar , phi_e):
 			beta_e = beta_new
 			V_1_old = V_1
 	return [V_1, alpha_e]
-
+#Incident velocity initialization
 V_0 = 0.0
-
-#Расчёт скоростей набегания
+#Cylce for incident velocity calculations
 for i in range(0, Nrad):
 	for j in range(0,Ntab):
 		if W != 0:
@@ -196,60 +196,59 @@ for i in range(0, Nrad):
 		else:
 			[V_1[i,j], alpha_e[i,j] ] = [0, 0]
 			beta_e[i,j] = 0
-
+#Plotting angles and inductive velocity
 plt.figure(1)
 plt.subplot(411)
 plt.plot(fPhi(r))
-#plt.axis([0, 9000, 0, 1000])
 plt.ylabel('phi_e, grad')
 plt.grid(True)
 plt.axhline(0, color='black', lw=1)
 
 plt.subplot(412)
 graphs = plt.plot(r, alpha_e[:,:])
-#plt.axis([0, 9000, 0, 1000])
 plt.ylabel('alpha_e, grad')
 plt.grid(True)
 plt.axhline(0, color='black', lw=1)
 
 plt.subplot(413)
 plt.plot(r, beta_e[:,:])
-#plt.axis([0, 9000, 0, 10])
 plt.ylabel('beta_e, grad')
 plt.grid(True)
 plt.axhline(0, color='black', lw=1)
 
 plt.subplot(414)
 plt.plot(r, V_1[:,:])
-#plt.axis([0, 9000, 0, 5])
 plt.xlabel('Relative radius')
 plt.ylabel('Inductive velocity')
 plt.grid(True)
 plt.axhline(0, color='black', lw=1)
 
-#plt.show()
 plt.savefig('angles.png', bbox_inches=0)
 
+#Calculating rotor thrust coefficient
+#Initialization
 dCt_dr = np.zeros((Nrad, Ntab))
 dCt_dr_v = np.zeros((Nrad, Ntab))
-
+#Main cycle through all sections and incident velocities
 for i in range(1, Nrad):
 	for j in range(0,Ntab):
 		dCt_dr[i,j] = CLift(Re[i,j], alpha_e[i,j])*sigma(r[i])*0.25*(r[i]+r[i-1])**2*(r[i]-r[i-1])
 		dCt_dr_v[i,j] = V_1[i,j]*(V_1[i,j]-V0[j]/(R_l*W))*(r[i]+r[i-1])*0.5*(r[i]-r[i-1])
-
+#Integral coefficients
 Ct_c = np.sum(dCt_dr, axis = 0)*np.pi**3/8
 Ct_c_v = np.sum(dCt_dr_v, axis = 0)*np.pi**3
-#Концевые потери
+
+#Tip losses
 B = 1 - 4*Ct_c/K_l
 Ct = B*Ct_c
 
-print('Ct* list\n', Ct_c)	
-print('Ct_v* list\n', Ct_c_v)	
+#Uncomment if you need to see calculated values
+#print('Ct* list\n', Ct_c)	
+#print('Ct_v* list\n', Ct_c_v)	
+#print('B list\n', B)	
+#print('Ct list\n', Ct)
 
-print('B list\n', B)	
-print('Ct list\n', Ct)
-
+#Calculation of the moment coefficient
 dmi_dr = np.zeros((Nrad, Ntab))
 dmr_dr = np.zeros((Nrad, Ntab))
 dmi_dr_v = np.zeros((Nrad, Ntab))
@@ -263,26 +262,33 @@ for i in range(1, Nrad):
 		dmi_dr_v[i,j] = dCt_dr_v[i,j]*V_1[i,j]*(r[i]-r[i-1])
 		Cx_beta = CLift(Re[i,j], alpha_e[i,j])*sind(beta_e[i,j]) + CDrag(Re[i,j], alpha_e[i,j])*cosd(beta_e[i,j])
 		dmr_dr_v[i,j] = Cx_beta*sigma(r[i])*(r[i]**2 + V_1[i,j]**2)*(r[i]+r[i-1])*0.5*(r[i]-r[i-1])
-
+#Integration 
 mi = np.sum(dmi_dr, axis = 0)
 mr = np.sum(dmr_dr, axis = 0)
 mk = (mi + mr)*np.pi**4/8
-print "Mk"
-print mk
-print('dmi/dr \n', mi)	
-print('dmr/dr \n', mr)	
-#print('dmr/dr \n', dmr_dr)	
+
+#Uncomment if you need to see calculated values
+#print "Mk"
+#print mk
+#print('dmi/dr \n', mi)	
+#print('dmr/dr \n', mr)	
+#print('dmr/dr \n', dmr_dr)
+	
 mi_v = np.sum(dmi_dr_v, axis = 0)
 mr_v = np.sum(dmr_dr_v, axis = 0)
 mk_v = (mi_v + mr_v)*np.pi**4/8
-print "Mk_v"
-print mk_v
-print('dmi/dr \n', mi_v)	
-print('dmr/dr \n', mr_v)	
 
+#Uncomment if you need to see calculated values
+#print "Mk_v"
+#print mk_v
+#print('dmi/dr \n', mi_v)	
+#print('dmr/dr \n', mr_v)	
+
+#Calculation of the efficiency of the whole rotor
 nu0 = Ct_c_v/mk_v*J
-print('Nu0 list\n', nu0)	
+#print('Nu0 list\n', nu0)	
 
+#Plotting it all coefficients
 plt.figure(2)
 plt.subplot(311)
 graphs = plt.plot(J, Ct_c_v)
@@ -299,7 +305,6 @@ plt.axhline(0, color='black', lw=1)
 plt.subplot(313)
 plt.plot(J, nu0)
 plt.xlabel('Advance ratio')
-#plt.axis([0, 1, 0, 1])
 plt.ylabel('Efficiency')
 plt.grid(True)
 plt.axhline(0, color='black', lw=1)
