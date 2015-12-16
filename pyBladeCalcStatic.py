@@ -8,14 +8,11 @@ import sys
 
 #including modules
 import numpy as np
-import pylab as pl
 import matplotlib.pyplot as plt
 
-from pylab import load
-from pylab import save
-
 from scipy import interpolate
-from math import pi
+
+pi = np.pi
 
 cosd = lambda angle: np.cos(np.deg2rad(angle))
 sind = lambda angle: np.sin(np.deg2rad(angle))

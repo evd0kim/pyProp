@@ -7,14 +7,11 @@ import sys
 
 #including modules
 import numpy as np
-import pylab as pl
 import matplotlib.pyplot as plt
 
-from pylab import load
-from pylab import save
-
 from scipy import interpolate
-from math import pi
+
+pi = np.pi
 
 cosd = lambda angle: np.cos(np.deg2rad(angle))
 sind = lambda angle: np.sin(np.deg2rad(angle))
@@ -309,8 +306,8 @@ plt.ylabel('Efficiency')
 plt.grid(True)
 plt.axhline(0, color='black', lw=1)
 
-plt.show()
 plt.savefig('results.png', bbox_inches=0)
+plt.show()
 
 #writing data to file
 outfile = open('N'+str(N)+'-calc.dat', 'wt')
