@@ -19,6 +19,7 @@ HOW TO USE:
 ==================================================================================================
 
 Launch in shell:
+
 	python pyBladeCalc.py APCFOIL.csv apcsf_10x7_geom.txt
 
 APCFOIL.csv - file with characteristics of the airfoil.
@@ -29,6 +30,20 @@ Eppler E63.
 
 apcsf_10x7_geom.txt - the standard file with geometrical characteristics of the blade downloaded 
 from database [1]
+
+Launch in python shell:
+
+1. Importing sys - module:
+
+	import sys
+	
+2. Assign promt parameters to list:
+
+   	sys.argv = ['', 'APCFOIL.csv', 'apcsf_10x7_geom.txt']
+	
+3. Launching script
+
+   	execfile('pyBladeCalc.py')
 
 ==================================================================================================
 
